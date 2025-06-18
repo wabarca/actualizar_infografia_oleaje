@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <form id="formulario">
+      <label for="archivo">Selecciona el archivo Oleaje_Viento.xlsx:</label><br>
+      <input type="file" id="archivo" name="archivo" accept=".xlsx" required><br><br>
+      <input type="submit" value="Subir">
+    </form>
+
+    <p id="resultado"></p>
+
+    <script>
+      document.getElementById("formulario").addEventListener("submit", function (e) {
+        e.preventDefault(); // Evita recargar la página
+        subirArchivo();
+      });
+
+      function subirArchivo() {
+        const archivoInput = document.getElementById('archivo');
+        const archivo = archivoInput.files[0];
+
+        if (!archivo) {
+          alert('Por favor, selecciona un archivo.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const contenidoBase64 = e.target.result.split(',')[1];
+
+          fetch('https://script.google.com/a/macros/ambiente.gob.sv/s/AKfycby3FFADx-L16gb1lIJN66Il7JvIqeWmbg0dgtv5DnU_4PHXZNzGCDMOvL1zJjjL9TsX/exec', {
+            method: 'POST',
+            body: new URLSearchParams({
+              nombreArchivo: archivo.name,
+              contenidoBase64: contenidoBase64
+            })
+          })
+          .then(res => res.text())
+          .then(mensaje => {
+            alert(mensaje);
+            google.script.host.close(); // ✅ Cierra el cuadro tras éxito
+          })
+          .catch(err => {
+            alert('❌ Error al subir: ' + err);
+          });
+        };
+
+        reader.readAsDataURL(archivo);
+      }
+    </script>
+  </body>
+</html>
