@@ -57,31 +57,12 @@ function obtenerDatosDeMareaYOleaje(hojaOleaje, hoy, manana) {
   var archivoMarea = carpetaDatosEntrada.getFilesByName(NOMBRE_MAREA).next();
   var hojaMarea = SpreadsheetApp.open(archivoMarea).getSheetByName("mareas");
 
-  var estaciones = [{
-      nombre: 'la_union',
-      hoja: 'GOFO',
-      columnaHora: 4,
-      columnaAltura: 5
-    },
-    {
-      nombre: 'el_triunfo',
-      hoja: 'PCOR',
-      columnaHora: 6,
-      columnaAltura: 7
-    },
-    {
-      nombre: 'la_libertad',
-      hoja: 'COBA',
-      columnaHora: 8,
-      columnaAltura: 9
-    },
-    {
-      nombre: 'acajutla',
-      hoja: 'PCOC',
-      columnaHora: 10,
-      columnaAltura: 11
-    }
-  ];
+  var estaciones = [
+  { nombre: 'la_union',     hoja: 'GOFO', columnaHora: 4, columnaAltura: 5 },
+  { nombre: 'el_triunfo',   hoja: 'PCOR', columnaHora: 6, columnaAltura: 7 },
+  { nombre: 'la_libertad',  hoja: 'COBA', columnaHora: 8, columnaAltura: 9 },
+  { nombre: 'acajutla',     hoja: 'PCOC', columnaHora: 10, columnaAltura: 11 }
+];
 
   var datos = {};
   var fechaHoy = Utilities.formatDate(hoy, 'America/El_Salvador', 'd MMM');
