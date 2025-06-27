@@ -16,7 +16,7 @@ function actualizarInfografia() {
   try {
     var hoy = new Date();
     var manana = new Date(hoy);
-    manana.setDate(hoy.getDate() + 2);
+    manana.setDate(hoy.getDate() + 1);
     var fechaTexto = Utilities.formatDate(manana, Session.getScriptTimeZone(), 'dd/MM/yy');
 
     var carpetaDatosEntrada = DriveApp.getFolderById(CARPETA_DATOS_ENTRADA_ID);
@@ -57,31 +57,13 @@ function obtenerDatosDeMareaYOleaje(hojaOleaje, hoy, manana) {
   var archivoMarea = carpetaDatosEntrada.getFilesByName(NOMBRE_MAREA).next();
   var hojaMarea = SpreadsheetApp.open(archivoMarea).getSheetByName("mareas");
 
-  var estaciones = [{
-      nombre: 'la_union',
-      hoja: 'GOFO',
-      columnaHora: 4,
-      columnaAltura: 5
-    },
-    {
-      nombre: 'el_triunfo',
-      hoja: 'PCOR',
-      columnaHora: 6,
-      columnaAltura: 7
-    },
-    {
-      nombre: 'la_libertad',
-      hoja: 'COBA',
-      columnaHora: 8,
-      columnaAltura: 9
-    },
-    {
-      nombre: 'acajutla',
-      hoja: 'PCOC',
-      columnaHora: 10,
-      columnaAltura: 11
-    }
-  ];
+  var estaciones = [
+  { nombre: 'la_union',     hoja: 'GOFO', columnaHora: 4, columnaAltura: 5 },
+  { nombre: 'el_triunfo',   hoja: 'PCOR', columnaHora: 6, columnaAltura: 7 },
+  { nombre: 'la_libertad',  hoja: 'COBA', columnaHora: 8, columnaAltura: 9 },
+  { nombre: 'acajutla',     hoja: 'PCOC', columnaHora: 10, columnaAltura: 11 }
+];
+
 
   var datos = {};
   var fechaHoy = Utilities.formatDate(hoy, 'America/El_Salvador', 'd MMM');
@@ -153,20 +135,109 @@ function obtenerDatosDeMareaYOleaje(hojaOleaje, hoy, manana) {
     }
   }
 
-  estaciones.forEach(function (estacion) {
-    ['Alta', 'Baja'].forEach(function (tipo) {
-      var registros = mareas[tipo][estacion.nombre] || [];
-      if (registros.length === 0) {
-        Logger.log(`⚠️ No se encontraron registros para ${estacion.nombre} - ${tipo}`);
+estaciones.forEach(function (estacion) {
+  ['Alta', 'Baja'].forEach(function (tipo) {
+    var registros = mareas[tipo][estacion.nombre] || [];
+
+    if (registros.length === 1) {
+      const hojaValores = hojaMarea.getRange(13, 2, hojaMarea.getLastRow() - 12, 10).getValues();
+      const fechaObjetivo = Utilities.formatDate(manana, 'America/El_Salvador', 'yyyy-MM-dd');
+
+      // Recolectar horas de mareas del tipo y día para esta estación
+      let mareasDelDia = [];
+
+      hojaValores.forEach((fila) => {
+        const fecha = fila[0];
+        const tipoFila = (fila[1] || '').toString().toLowerCase().trim();
+        const fechaStr = Utilities.formatDate(new Date(fecha), 'America/El_Salvador', 'yyyy-MM-dd');
+        if (fechaStr !== fechaObjetivo || tipoFila !== tipo.toLowerCase()) return;
+
+        const horaTexto = fila[estacion.columnaHora - 2];
+        const alturaTexto = fila[estacion.columnaAltura - 2];
+
+        if (horaTexto && alturaTexto !== '-' && !isNaN(parseFloat(alturaTexto))) {
+          const horaDate = new Date(manana.toDateString() + ' ' + horaTexto);
+          mareasDelDia.push({ hora: horaDate, altura: parseFloat(alturaTexto).toFixed(1) });
+        }
+      });
+
+      // Ordenar cronológicamente
+      mareasDelDia.sort((a, b) => a.hora - b.hora);
+
+      // Comparar con la hora del único registro válido
+      const horaUnica = new Date(manana.toDateString() + ' ' + registros[0].hora.replace('a.m.', 'AM').replace('p.m.', 'PM'));
+      const esPrimera = (mareasDelDia.length && horaUnica.getTime() === mareasDelDia[0].hora.getTime());
+
+      let respaldoAltura = null;
+      let filaReferencia = null;
+
+      if (esPrimera) {
+        // Buscar segunda marea del día anterior
+        const fechaAnterior = new Date(manana);
+        fechaAnterior.setDate(manana.getDate() - 1);
+        const fechaAnteriorStr = Utilities.formatDate(fechaAnterior, 'America/El_Salvador', 'yyyy-MM-dd');
+
+        for (let i = hojaValores.length - 1; i >= 0; i--) {
+          const fila = hojaValores[i];
+          const fecha = fila[0];
+          const tipoFila = (fila[1] || '').toString().toLowerCase().trim();
+          if (!fecha || tipoFila !== tipo.toLowerCase()) continue;
+          const fStr = Utilities.formatDate(new Date(fecha), 'America/El_Salvador', 'yyyy-MM-dd');
+          if (fStr === fechaAnteriorStr) {
+            const alt = fila[estacion.columnaAltura - 2];
+            if (alt !== '-' && !isNaN(parseFloat(alt))) {
+              respaldoAltura = parseFloat(alt).toFixed(1);
+              filaReferencia = i + 13;
+              Logger.log(`ℹ️ Marea faltante (primera ${tipo}) para ${estacion.nombre} completada con fila ${filaReferencia} del día anterior: altura = ${respaldoAltura}`);
+              break;
+            }
+          }
+        }
+      } else {
+        // Buscar primera marea del día siguiente
+        const fechaSiguiente = new Date(manana);
+        fechaSiguiente.setDate(manana.getDate() + 1);
+        const fechaSiguienteStr = Utilities.formatDate(fechaSiguiente, 'America/El_Salvador', 'yyyy-MM-dd');
+
+        for (let i = 0; i < hojaValores.length; i++) {
+          const fila = hojaValores[i];
+          const fecha = fila[0];
+          const tipoFila = (fila[1] || '').toString().toLowerCase().trim();
+          if (!fecha || tipoFila !== tipo.toLowerCase()) continue;
+          const fStr = Utilities.formatDate(new Date(fecha), 'America/El_Salvador', 'yyyy-MM-dd');
+          if (fStr === fechaSiguienteStr) {
+            const alt = fila[estacion.columnaAltura - 2];
+            if (alt !== '-' && !isNaN(parseFloat(alt))) {
+              respaldoAltura = parseFloat(alt).toFixed(1);
+              filaReferencia = i + 13;
+              Logger.log(`ℹ️ Marea faltante (segunda ${tipo}) para ${estacion.nombre} completada con fila ${filaReferencia} del día siguiente: altura = ${respaldoAltura}`);
+              break;
+            }
+          }
+        }
       }
-      for (var i = 0; i < registros.length; i++) {
-        var claveHora = `{{${estacion.nombre}_${tipo.toLowerCase()}${i+1}_hora}}`;
-        var claveAltura = `{{${estacion.nombre}_${tipo.toLowerCase()}${i+1}_altura}}`;
-        datos[claveHora] = registros[i].hora;
-        datos[claveAltura] = registros[i].altura;
+
+      if (respaldoAltura !== null) {
+        registros.push({
+          hora: '12:00 a.m.',
+          altura: respaldoAltura
+        });
       }
-    });
+    }
+
+    // Asegurar siempre dos registros completos
+    for (let i = 0; i < 2; i++) {
+      const registro = registros[i];
+      const claveHora = `{{${estacion.nombre}_${tipo.toLowerCase()}${i + 1}_hora}}`;
+      const claveAltura = `{{${estacion.nombre}_${tipo.toLowerCase()}${i + 1}_altura}}`;
+      if (registro) {
+        datos[claveHora] = registro.hora;
+        datos[claveAltura] = registro.altura;
+      }
+    }
   });
+});
+
 
   ['Alta', 'Baja'].forEach(function (tipo) {
     const horas = horasPorTipo[tipo];
