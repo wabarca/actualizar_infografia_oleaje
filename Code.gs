@@ -16,7 +16,7 @@ function actualizarInfografia() {
   try {
     var hoy = new Date();
     var manana = new Date(hoy);
-    manana.setDate(hoy.getDate() + 1);
+    manana.setDate(hoy.getDate() + 2);
     var fechaTexto = Utilities.formatDate(manana, Session.getScriptTimeZone(), 'dd/MM/yy');
 
     var carpetaDatosEntrada = DriveApp.getFolderById(CARPETA_DATOS_ENTRADA_ID);
@@ -27,7 +27,7 @@ function actualizarInfografia() {
     var template = carpetaEstatica.getFilesByName(NOMBRE_TEMPLATE).next();
 
     var carpetaSalida = DriveApp.getFolderById(CARPETA_INFOGRAFIAS_ID);
-    var copia = template.makeCopy("Marea y Oleaje " + fechaTexto, carpetaSalida);
+    var copia = template.makeCopy("Marea " + fechaTexto, carpetaSalida);
     var presentacion = SlidesApp.openById(copia.getId());
 
     var slides = presentacion.getSlides();
@@ -57,12 +57,31 @@ function obtenerDatosDeMareaYOleaje(hojaOleaje, hoy, manana) {
   var archivoMarea = carpetaDatosEntrada.getFilesByName(NOMBRE_MAREA).next();
   var hojaMarea = SpreadsheetApp.open(archivoMarea).getSheetByName("mareas");
 
-  var estaciones = [
-  { nombre: 'la_union',     hoja: 'GOFO', columnaHora: 4, columnaAltura: 5 },
-  { nombre: 'el_triunfo',   hoja: 'PCOR', columnaHora: 6, columnaAltura: 7 },
-  { nombre: 'la_libertad',  hoja: 'COBA', columnaHora: 8, columnaAltura: 9 },
-  { nombre: 'acajutla',     hoja: 'PCOC', columnaHora: 10, columnaAltura: 11 }
-];
+  var estaciones = [{
+      nombre: 'la_union',
+      hoja: 'GOFO',
+      columnaHora: 4,
+      columnaAltura: 5
+    },
+    {
+      nombre: 'el_triunfo',
+      hoja: 'PCOR',
+      columnaHora: 6,
+      columnaAltura: 7
+    },
+    {
+      nombre: 'la_libertad',
+      hoja: 'COBA',
+      columnaHora: 8,
+      columnaAltura: 9
+    },
+    {
+      nombre: 'acajutla',
+      hoja: 'PCOC',
+      columnaHora: 10,
+      columnaAltura: 11
+    }
+  ];
 
   var datos = {};
   var fechaHoy = Utilities.formatDate(hoy, 'America/El_Salvador', 'd MMM');
@@ -112,7 +131,7 @@ function obtenerDatosDeMareaYOleaje(hojaOleaje, hoy, manana) {
 
         if (!mareas[tipo][estacion.nombre]) mareas[tipo][estacion.nombre] = [];
 
-        if (horaTexto && altura) {
+        if (horaTexto && altura !== '-' && !isNaN(parseFloat(altura))) {
           var match = horaTexto.match(/(\d+):(\d+)/);
           if (match) {
             var hora = parseInt(match[1]);
